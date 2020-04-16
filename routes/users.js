@@ -5,10 +5,10 @@ const passport = require('passport');
 
 // load user model
 const User = require('../models/User');
-// const { fowardAuthenticated } = require('../config/auth');
+const { fowardAuthenticated } = require('../config/auth');
 
 // Get register page
-router.get('/register', (req, res) => {
+router.get('/register', fowardAuthenticated, (req, res) => {
   res.render('register');
 });
 
@@ -59,9 +59,51 @@ router.post('/register', (req, res) => {
           email,
           password,
         });
+
+        // Encrpyt the password
+        bcrypt.genSalt(10, (err, salt) => {
+          // Encrypt the password from the User object we created before
+          bcrypt.hash(newUser.password, salt, (err, hash) => {
+            if (err) throw err;
+            newUser.password = hash;
+            // Insert into the database
+            newUser
+              .save()
+              .then((user) => {
+                req.flash(
+                  'success_msg',
+                  'You are now registered and can log in'
+                );
+                res.redirect('/users/login');
+              })
+              .catch((err) => console.log(err));
+          });
+        });
       }
     });
   }
+});
+
+// Get login page
+router.get('/login', fowardAuthenticated, (req, res, next) => {
+  res.render('login');
+});
+
+// Login post
+router.post('/login', (req, res, next) => {
+  passport.authenticate('local', {
+    successRedirect: '/dashboard',
+    failureRedirect: '/users/login',
+    failureFlash: true,
+  })(req, res, next);
+});
+
+// Logout
+router.get('/logout', (req, res) => {
+  req.logout();
+  req.flash('success_msg', 'You are logged out');
+  // Redirect back to login screen
+  res.redirect('/users/login');
 });
 
 module.exports = router;
